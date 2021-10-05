@@ -1,0 +1,112 @@
+--project log
+
+
+0. Update configs
+
+	0.1 FOS REST BUNDLE
+
+	# Read the documentation: https://symfony.com/doc/master/bundles/FOSRestBundle/index.html
+	fos_rest:
+	  body_listener:
+	    enabled: true
+
+	  format_listener:
+	        rules:
+	            - { path: ^/api, prefer_extension: true, fallback_format: json, priorities: [ json ] }
+
+	0.2 DB config .env
+
+	DATABASE_URL="mysql://root@127.0.0.1:3306/forms_api?serverVersion=5.7"
+            
+
+1. Create Entities:
+
+	-Cart
+	-Customer
+	-Product
+
+	1.1 Define column mapping via private vars
+	
+	1.2 Create getters / setters in order to instansciate / change class instances
+		1.2.1 Remove setters for "ID" column, cause we don't want to change it
+	
+	1.3 Create DB
+
+		php bin/console doctrine:migrations:diff
+		php bin/console doctrine:migrations:migrate
+		php bin/console doctrine:migrations:execute --up DoctrineMigrations\Version20210823182202
+		php bin/console doctrine:migrations:execute --down DoctrineMigrations\Version20210823182202
+
+2. Create controllers for all entities which extend AbstractApiController
+
+	2.1 Create abstract class AbstractApiController
+		2.1.1 buildForm(): FormInterface, respond(): Response
+
+	2.2 Create Customer controller
+		2.2.1 indexAction(): Response; returns all customers
+		
+		2.2.2 Create CustomerType (extends AbstractType)
+			2.2.2.1 buildForm(FormBuilderInterface $builder, array $options): void; add constraints to the $builder (types, NotNull, etc.)
+			2.2.2.2 configureOptions(OptionsResolver $resolver): void;
+			addd constraints to the $resolver ('data_class' => Customer, 'csrf_protection' => false)
+
+		2.2.3 createAction(): Response; accepts form of type CustomerType, verifies it and persists on success
+	
+	2.3 Create Product controller
+		2.3.1 indexAction(): Response; returns all products
+
+		2.3.2 Create ProductType (extends AbstractType)
+
+			2.3.2.1 buildForm(FormBuilderInterface $builder, array $options): void; add constraints to the $builder (types, NotNull, Length, GreaterThen, etc.)
+
+			2.3.2.2 configureOptions(OptionsResolver $resolver): void;
+			addd constraints to the $resolver ('data_class' => Product, 'csrf_protection' => false)
+
+		2.3.3 createAction(): Response; accepts form of type ProductType, verifies it and persists on success 
+
+	2.4 Create Cart controller
+
+		2.4.1 showAction(): Response; get customerId from Customer by id from request -> get cartId from Cart by customerId -> return cartId
+
+		2.4.2 Create CartType (extends AbstractType)
+
+			2.4.2.1 buildForm(FormBuilderInterface $builder, array $options): void; add constraints to the $builder (takes classes as input EntityType, etc.)
+
+			2.4.2.2 configureOptions(OptionsResolver $resolver): void;
+			addd constraints to the $resolver ('data_class' => Cart, 'csrf_protection' => false) 
+
+
+		2.4.3 createAction(): Response; accepts form of type CartType, verifies it and persists on success
+
+		2.4.4 deleteAction(): Response; get cartId, customerId from Cart by IDs from request and remove it on success
+
+		2.4.5 updateAction(): Response; get customerId from Customer by id from request -> get cartId from Cart by customerId -> build new $form CartType -> persist on success
+
+3. Create routes for Controllers' functions in config/routes.yaml
+
+The route structrure example:
+
+customer_list:
+  path: /api/v1/customers
+  controller: App\Controller\CustomerController:indexAction
+  methods: [GET]
+
+Example with variables (customerId, cartId) and requirements:
+
+cart_delete:
+  path: /api/v1/customers/{customerId}/cart/{cartId}
+  controller: App\Controller\CartController:deleteAction
+  methods: [DELETE]
+  requirements:
+    customerId: '\d+'
+    cartId: '\d+'
+
+
+  3.1 CustomerController:indexAction [GET]
+  3.2 CustomerController:createAction [POST]
+  3.3 ProductController:indexAction [GET]
+  3.4 ProductController:createAction [POST]
+  3.5 CartController:showAction [GET]
+  3.6 CartController:createAction [POST]
+  3.7 CartController:deleteAction [DELETE]
+  3.8 CartController:updateAction [PATCH]
